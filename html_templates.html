@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JEE Test Analysis System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.5.0/axios.min.js"></script>
+    <style>
+        .question-container {
+            transition: all 0.3s ease;
+        }
+        .question-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .timer-warning {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .math-expression {
+            font-family: 'Times New Roman', serif;
+        }
+        .drag-drop-zone {
+            border: 2px dashed #cbd5e0;
+            transition: all 0.3s ease;
+        }
+        .drag-drop-zone:hover {
+            border-color: #4299e1;
+            background-color: #ebf8ff;
+        }
+        .drag-drop-zone.dragover {
+            border-color: #3182ce;
+            background-color: #bee3f8;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold text-blue-600">JEE Test Analysis System</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div id="timer" class="text-lg font-semibold text-gray-700"></div>
+                    <button id="submit-test" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium">
+                        Submit Test
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <!-- Upload Section -->
+        <div id="upload-section" class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Upload Test Paper</h2>
+            <form id="upload-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Test Title</label>
+                    <input type="text" id="test-title" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter test title" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Marking Scheme</label>
+                    <select id="scheme-type" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="JEE_MAIN">JEE Main</option>
+                        <option value="JEE_ADVANCED">JEE Advanced</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">PDF File</label>
+                    <div class="drag-drop-zone border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                        <input type="file" id="pdf-file" accept=".pdf" class="hidden" required>
+                        <div id="drop-zone-content">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <p class="mt-2 text-sm text-gray-600">
+                                <button type="button" class="text-blue-600 hover:text-blue-500 font-medium">Click to upload</button>
+                                or drag and drop
+                            </p>
+                            <p class="text-xs text-gray-500">PDF files only</p>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md">
+                    Upload and Process
+                </button>
+            </form>
+        </div>
+
+        <!-- Test Interface -->
+        <div id="test-interface" class="hidden">
+            <!-- Question Navigation -->
+            <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+                <h3 class="text-lg font-semibold mb-3">Question Navigation</h3>
+                <div id="question-navigation" class="grid grid-cols-10 gap-2"></div>
+                <div class="mt-4 flex justify-between text-sm text-gray-600">
+                    <span>Answered: <span id="answered-count">0</span></span>
+                    <span>Remaining: <span id="remaining-count">0</span></span>
+                </div>
+            </div>
+
+            <!-- Question Display -->
+            <div id="question-display" class="bg-white rounded-lg shadow-md p-6">
+                <!-- Question content will be loaded here -->
+            </div>
+
+            <!-- Navigation Controls -->
+            <div class="flex justify-between mt-6">
+                <button id="prev-question" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium">
+                    Previous
+                </button>
+                <div class="flex space-x-4">
+                    <button id="clear-answer" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-medium">
+                        Clear
+                    </button>
+                    <button id="mark-review" class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg font-medium">
+                        Mark for Review
+                    </button>
+                </div>
+                <button id="next-question" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium">
+                    Next
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results-section" class="hidden bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-semibold mb-4">Test Results</h2>
+            <div id="results-content"></div>
+        </div>
+    </div>
+
+    <!-- Question Templates -->
+    <template id="scq-template">
+        <div class="question-container">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Question <span class="question-number"></span></h3>
+                <div class="flex items-center space-x-2">
+                    <span class="question-type-badge px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">SCQ</span>
+                    <span class="confidence-score text-sm text-gray-500"></span>
+                </div>
+            </div>
+            <div class="question-text math-expression mb-6"></div>
+            <div class="question-images mb-6"></div>
+            <div class="options space-y-3"></div>
+        </div>
+    </template>
+
+    <template id="mcq-template">
+        <div class="question-container">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Question <span class="question-number"></span></h3>
+                <div class="flex items-center space-x-2">
+                    <span class="question-type-badge px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">MCQ</span>
+                    <span class="confidence-score text-sm text-gray-500"></span>
+                </div>
+            </div>
+            <div class="question-text math-expression mb-6"></div>
+            <div class="question-images mb-6"></div>
+            <p class="text-sm text-blue-600 mb-4">Select one or more correct answers</p>
+            <div class="options space-y-3"></div>
+        </div>
+    </template>
+
+    <template id="integer-template">
+        <div class="question-container">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Question <span class="question-number"></span></h3>
+                <div class="flex items-center space-x-2">
+                    <span class="question-type-badge px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">INTEGER</span>
+                    <span class="confidence-score text-sm text-gray-500"></span>
+                </div>
+            </div>
+            <div class="question-text math-expression mb-6"></div>
+            <div class="question-images mb-6"></div>
+            <p class="text-sm text-blue-600 mb-4">Enter your answer as an integer (0-9999)</p>
+            <div class="max-w-xs">
+                <input type="number" class="integer-input w-full border border-gray-300 rounded-md px-3 py-2 text-center text-lg font-medium focus:outline-none focus:ring-2 focus:ring-blue-500" min="0" max="9999" placeholder="Enter answer">
+            </div>
+        </div>
+    </template>
+
+    <template id="match-column-template">
+        <div class="question-container">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Question <span class="question-number"></span></h3>
+                <div class="flex items-center space-x-2">
+                    <span class="question-type-badge px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">MATCH</span>
+                    <span class="confidence-score text-sm text-gray-500"></span>
+                </div>
+            </div>
+            <div class="question-text math-expression mb-6"></div>
+            <div class="question-images mb-6"></div>
+            <p class="text-sm text-blue-600 mb-4">Match items from Column I with Column II</p>
+            <div class="grid grid-cols-2 gap-6">
+                <div class="column-1">
+                    <h4 class="font-semibold mb-3">Column I</h4>
+                    <div class="column-items space-y-2"></div>
+                </div>
+                <div class="column-2">
+                    <h4 class="font-semibold mb-3">Column II</h4>
+                    <div class="column-items space-y-2"></div>
+                </div>
+            </div>
+            <div class="mt-6">
+                <h4 class="font-semibold mb-3">Your Matches</h4>
+                <div class="matches-display grid grid-cols-2 gap-4"></div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        // Global state
+        let currentTest = null;
+        let currentQuestionIndex = 0;
+        let userAnswers = {};
+        let testTimer = null;
+        let testStartTime = null;
+        let questionStartTime = null;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeUpload();
+            initializeNavigation();
+            initializeTimer();
+            
+            // Configure MathJax
+            window.MathJax = {
+                tex: {
+                    inlineMath: [[', '], ['\\(', '\\)']],
+                    displayMath: [['$', '$'], ['\\[', '\\]']]
+                }
+            };
+        });
+
+        // File upload handling
+        function initializeUpload() {
+            const uploadForm = document.getElementById('upload-form');
+            const fileInput = document.getElementById('pdf-file');
+            const dropZone = document.querySelector('.drag-drop-zone');
+            const dropZoneContent = document.getElementById('drop-zone-content');
+
+            // Click to upload
+            dropZone.addEventListener('click', () => fileInput.click());
+
+            // Drag and drop
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('dragover');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type === 'application/pdf') {
+                    fileInput.files = files;
+                    updateDropZoneContent(files[0]);
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    updateDropZoneContent(e.target.files[0]);
+                }
+            });
+
+            uploadForm.addEventListener('submit', handleTestUpload);
+        }
+
+        function updateDropZoneContent(file) {
+            const dropZoneContent = document.getElementById('drop-zone-content');
+            dropZoneContent.innerHTML = `
+                <svg class="mx-auto h-12 w-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 48 48">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <p class="mt-2 text-sm text-gray-600 font-medium">${file.name}</p>
+                <p class="text-xs text-gray-500">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+            `;
+        }
+
+        async function handleTestUpload(e) {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('file', document.getElementById('pdf-file').files[0]);
+            formData.append('title', document.getElementById('test-title').value);
+            formData.append('scheme_type', document.getElementById('scheme-type').value);
+
+            try {
+                showLoading('Processing PDF...');
+                const response = await axios.post('/upload-test', formData);
+                hideLoading();
+                
+                if (response.data.test_id) {
+                    await loadTest(response.data.test_id);
+                    showNotification('Test uploaded successfully!', 'success');
+                }
+            } catch (error) {
+                hideLoading();
+                showNotification('Error uploading test: ' + error.message, 'error');
+            }
+        }
+
+        async function loadTest(testId) {
+            try {
+                const response = await axios.get(`/test/${testId}`);
+                currentTest = response.data;
+                
+                // Hide upload section, show test interface
+                document.getElementById('upload-section').classList.add('hidden');
+                document.getElementById('test-interface').classList.remove('hidden');
+                
+                // Initialize test
+                initializeTest();
+                startTimer();
+                
+            } catch (error) {
+                showNotification('Error loading test: ' + error.message, 'error');
+            }
+        }
+
+        function initializeTest() {
+            // Create question navigation
+            const navContainer = document.getElementById('question-navigation');
+            navContainer.innerHTML = '';
+            
+            currentTest.questions.forEach((question, index) => {
+                const button = document.createElement('button');
+                button.className = 'question-nav-btn w-10 h-10 border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500';
+                button.textContent = index + 1;
+                button.addEventListener('click', () => navigateToQuestion(index));
+                navContainer.appendChild(button);
+            });
+
+            // Update counters
+            updateNavigationCounters();
+            
+            // Load first question
+            loadQuestion(0);
+        }
+
+        function navigateToQuestion(index) {
+            if (index >= 0 && index < currentTest.questions.length) {
+                saveCurrentAnswer();
+                currentQuestionIndex = index;
+                loadQuestion(index);
+                updateNavigationCounters();
+            }
+        }
+
+        function loadQuestion(index) {
+            const question = currentTest.questions[index];
+            const displayContainer = document.getElementById('question-display');
+            
+            // Record question start time
+            questionStartTime = Date.now();
+            
+            // Get appropriate template
+            const template = document.getElementById(`${question.type.toLowerCase()}-template`);
+            const questionElement = template.content.cloneNode(true);
+            
+            // Populate question data
+            questionElement.querySelector('.question-number').textContent = index + 1;
+            questionElement.querySelector('.question-text').innerHTML = question.text;
+            questionElement.querySelector('.confidence-score').textContent = `Confidence: ${(question.confidence * 100).toFixed(1)}%`;
+            
+            // Handle images
+            const imagesContainer = questionElement.querySelector('.question-images');
+            if (question.images && question.images.length > 0) {
+                question.images.forEach(imagePath => {
+                    const img = document.createElement('img');
+                    img.src = `/static/images/${imagePath}`;
+                    img.className = 'max-w-full h-auto rounded-md shadow-md mb-4';
+                    imagesContainer.appendChild(img);
+                });
+            }
+            
+            // Handle question-specific content
+            if (question.type === 'SCQ' || question.type === 'MCQ') {
+                const optionsContainer = questionElement.querySelector('.options');
+                const inputType = question.type === 'SCQ' ? 'radio' : 'checkbox';
+                
+                question.options.forEach((option, optIndex) => {
+                    const optionDiv = document.createElement('div');
+                    optionDiv.className = 'flex items-center space-x-3 p-3 border border-gray-200 rounded-md hover:bg-gray-50';
+                    
+                    const input = document.createElement('input');
+                    input.type = inputType;
+                    input.name = `question_${index}`;
+                    input.value = String.fromCharCode(65 + optIndex); // A, B, C, D
+                    input.className = 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300';
+                    
+                    const label = document.createElement('label');
+                    label.className = 'flex-1 text-sm text-gray-700 cursor-pointer';
+                    label.innerHTML = option;
+                    label.addEventListener('click', () => input.click());
+                    
+                    optionDiv.appendChild(input);
+                    optionDiv.appendChild(label);
+                    optionsContainer.appendChild(optionDiv);
+                });
+            } else if (question.type === 'INTEGER') {
+                const input = questionElement.querySelector('.integer-input');
+                input.addEventListener('input', function() {
+                    if (this.value < 0) this.value = 0;
+                    if (this.value > 9999) this.value = 9999;
+                });
+            } else if (question.type === 'MATCH_COLUMN') {
+                // Implementation for match the column
+                setupMatchColumn(questionElement, question);
+            }
+            
+            // Load previous answer if exists
+            loadPreviousAnswer(questionElement, index);
+            
+            // Update display
+            displayContainer.innerHTML = '';
+            displayContainer.appendChild(questionElement);
+            
+            // Re-render MathJax
+            if (window.MathJax) {
+                MathJax.typesetPromise([displayContainer]).catch(err => console.log(err));
+            }
+            
+            // Update navigation buttons
+            updateNavigationButtons();
+        }
+
+        function setupMatchColumn(questionElement, question) {
+            // Implementation for match the column interface
+            const column1 = questionElement.querySelector('.column-1 .column-items');
+            const column2 = questionElement.querySelector('.column-2 .column-items');
+            
+            // Parse column data from question options
+            const columnData = parseMatchColumnData(question.options);
+            
+            columnData.column1.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'p-2 border border-gray-200 rounded-md bg-blue-50';
+                itemDiv.innerHTML = `<strong>${String.fromCharCode(65 + index)}.</strong> ${item}`;
+                column1.appendChild(itemDiv);
+            });
+            
+            columnData.column2.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'p-2 border border-gray-200 rounded-md bg-green-50';
+                itemDiv.innerHTML = `<strong>${index + 1}.</strong> ${item}`;
+                column2.appendChild(itemDiv);
+            });
+        }
+
+        function parseMatchColumnData(options) {
+            // Parse column data from options
+            return {
+                column1: ['Item A', 'Item B', 'Item C', 'Item D'],
+                column2: ['Item 1', 'Item 2', 'Item 3', 'Item 4']
+            };
+        }
+
+        function loadPreviousAnswer(questionElement, index) {
+            const questionId = currentTest.questions[index].id;
+            const savedAnswer = userAnswers[questionId];
+            
+            if (savedAnswer) {
+                const question = currentTest.questions[index];
+                
+                if (question.type === 'SCQ') {
+                    const radio = questionElement.querySelector(`input[value="${savedAnswer}"]`);
+                    if (radio) radio.checked = true;
+                } else if (question.type === 'MCQ') {
+                    const answers = savedAnswer.split(',');
+                    answers.forEach(answer => {
+                        const checkbox = questionElement.querySelector(`input[value="${answer}"]`);
+                        if (checkbox) checkbox.checked = true;
+                    });
+                } else if (question.type === 'INTEGER') {
+                    const input = questionElement.querySelector('.integer-input');
+                    if (input) input.value = savedAnswer;
+                }
+            }
+        }
+
+        function saveCurrentAnswer() {
+            if (!currentTest || currentQuestionIndex < 0) return;
+            
+            const question = currentTest.questions[currentQuestionIndex];
+            const questionElement = document.getElementById('question-display');
+            let answer = '';
+            
+            if (question.type === 'SCQ') {
+                const checked = questionElement.querySelector('input[type="radio"]:checked');
+                answer = checked ? checked.value : '';
+            } else if (question.type === 'MCQ') {
+                const checked = questionElement.querySelectorAll('input[type="checkbox"]:checked');
+                answer = Array.from(checked).map(cb => cb.value).join(',');
+            } else if (question.type === 'INTEGER') {
+                const input = questionElement.querySelector('.integer-input');
+                answer = input ? input.value : '';
+            }
+            
+            if (answer) {
+                userAnswers[question.id] = answer;
+                updateQuestionStatus(currentQuestionIndex, 'answered');
+            } else {
+                delete userAnswers[question.id];
+                updateQuestionStatus(currentQuestionIndex, 'unanswered');
+            }
+        }
+
+        function updateQuestionStatus(index, status) {
+            const navButtons = document.querySelectorAll('.question-nav-btn');
+            const button = navButtons[index];
+            
+            if (button) {
+                button.classList.remove('bg-green-200', 'bg-yellow-200', 'bg-red-200');
+                
+                if (status === 'answered') {
+                    button.classList.add('bg-green-200');
+                } else if (status === 'marked') {
+                    button.classList.add('bg-yellow-200');
+                } else if (status === 'unanswered') {
+                    button.classList.add('bg-red-200');
+                }
+            }
+            
+            updateNavigationCounters();
+        }
+
+        function updateNavigationCounters() {
+            const answered = Object.keys(userAnswers).length;
+            const total = currentTest ? currentTest.questions.length : 0;
+            
+            document.getElementById('answered-count').textContent = answered;
+            document.getElementById('remaining-count').textContent = total - answered;
+        }
+
+        function updateNavigationButtons() {
+            const prevBtn = document.getElementById('prev-question');
+            const nextBtn = document.getElementById('next-question');
+            
+            prevBtn.disabled = currentQuestionIndex === 0;
+            nextBtn.disabled = currentQuestionIndex === currentTest.questions.length - 1;
+            
+            prevBtn.classList.toggle('opacity-50', prevBtn.disabled);
+            nextBtn.classList.toggle('opacity-50', nextBtn.disabled);
+        }
+
+        function initializeNavigation() {
+            document.getElementById('prev-question').addEventListener('click', () => {
+                if (currentQuestionIndex > 0) {
+                    navigateToQuestion(currentQuestionIndex - 1);
+                }
+            });
+            
+            document.getElementById('next-question').addEventListener('click', () => {
+                if (currentQuestionIndex < currentTest.questions.length - 1) {
+                    navigateToQuestion(currentQuestionIndex + 1);
+                }
+            });
+            
+            document.getElementById('clear-answer').addEventListener('click', () => {
+                clearCurrentAnswer();
+            });
+            
+            document.getElementById('mark-review').addEventListener('click', () => {
+                markForReview();
+            });
+            
+            document.getElementById('submit-test').addEventListener('click', () => {
+                submitTest();
+            });
+        }
+
+        function clearCurrentAnswer() {
+            const questionElement = document.getElementById('question-display');
+            const inputs = questionElement.querySelectorAll('input');
+            inputs.forEach(input => {
+                if (input.type === 'radio' || input.type === 'checkbox') {
+                    input.checked = false;
+                } else {
+                    input.value = '';
+                }
+            });
+            
+            const questionId = currentTest.questions[currentQuestionIndex].id;
+            delete userAnswers[questionId];
+            updateQuestionStatus(currentQuestionIndex, 'unanswered');
+        }
+
+        function markForReview() {
+            updateQuestionStatus(currentQuestionIndex, 'marked');
+        }
+
+        function initializeTimer() {
+            const timerElement = document.getElementById('timer');
+            
+            function updateTimer() {
+                if (testStartTime) {
+                    const elapsed = Date.now() - testStartTime;
+                    const remaining = Math.max(0, (3 * 60 * 60 * 1000) - elapsed); // 3 hours
+                    
+                    const hours = Math.floor(remaining / (60 * 60 * 1000));
+                    const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+                    const seconds = Math.floor((remaining % (60 * 1000)) / 1000);
+                    
+                    timerElement.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    
+                    if (remaining < 10 * 60 * 1000) { // Last 10 minutes
+                        timerElement.classList.add('timer-warning', 'text-red-600');
+                    }
+                    
+                    if (remaining === 0) {
+                        submitTest();
+                    }
+                }
+            }
+            
+            testTimer = setInterval(updateTimer, 1000);
+        }
+
+        function startTimer() {
+            testStartTime = Date.now();
+        }
+
+        async function submitTest() {
+            if (!currentTest) return;
+            
+            saveCurrentAnswer();
+            
+            const confirmation = confirm('Are you sure you want to submit the test? This action cannot be undone.');
+            if (!confirmation) return;
+            
+            try {
+                showLoading('Submitting test...');
+                
+                const answers = Object.keys(userAnswers).map(questionId => ({
+                    question_id: questionId,
+                    answer: userAnswers[questionId],
+                    time_spent: 0 // Will be calculated server-side
+                }));
+                
+                const submission = {
+                    test_id: currentTest.test.id,
+                    user_

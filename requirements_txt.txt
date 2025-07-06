@@ -1,0 +1,65 @@
+# Core web framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+jinja2==3.1.2
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+
+# PDF Processing
+PyMuPDF==1.23.8
+pdfplumber==0.10.3
+pytesseract==0.3.10
+pdf2image==1.16.3
+
+# Image Processing
+opencv-python==4.8.1.78
+Pillow==10.0.1
+numpy==1.24.3
+
+# Machine Learning & NLP
+transformers==4.35.2
+torch==2.1.0
+scikit-learn==1.3.2
+nltk==3.8.1
+
+# Database
+sqlite3  # Built-in with Python
+sqlalchemy==2.0.23
+
+# Utilities
+pydantic==2.4.2
+python-dotenv==1.0.0
+requests==2.31.0
+aiofiles==23.2.1
+asyncio-throttle==1.0.2
+
+# Mathematical Processing
+sympy==1.12
+matplotlib==3.7.2
+
+# OCR and Text Processing
+easyocr==1.7.0
+spacy==3.7.2
+
+# Caching and Performance
+redis==5.0.1
+diskcache==5.6.3
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.2
+
+# Development
+black==23.10.1
+flake8==6.1.0
+mypy==1.7.0
+
+# Deployment
+gunicorn==21.2.0
+docker==6.1.3
+
+# Optional: For advanced ML models
+# sentence-transformers==2.2.2
+# onnx==1.15.0
+# onnxruntime==1.16.3
